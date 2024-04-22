@@ -21,13 +21,13 @@ _C.BASE = ['']
 # -----------------------------------------------------------------------------
 _C.DATA = CN()
 # Batch size for a single GPU, could be overwritten by command line argument
-_C.DATA.BATCH_SIZE = 64
+_C.DATA.BATCH_SIZE = 128
 # Path to dataset, could be overwritten by command line argument
 _C.DATA.DATA_PATH = ''
 # Dataset name
 _C.DATA.DATASET = 'imagenet'
 # Input image size
-_C.DATA.IMG_SIZE = 32
+_C.DATA.IMG_SIZE = 224
 # Interpolation to resize image (random, bilinear, bicubic)
 _C.DATA.INTERPOLATION = 'bicubic'
 # Use zipped dataset instead of folder dataset
@@ -41,7 +41,7 @@ _C.DATA.PIN_MEMORY = True
 _C.DATA.NUM_WORKERS = 8
 
 # [SimMIM] Mask patch size for MaskGenerator
-_C.DATA.MASK_PATCH_SIZE = 2
+_C.DATA.MASK_PATCH_SIZE = 32
 # [SimMIM] Mask ratio for MaskGenerator
 _C.DATA.MASK_RATIO = 0.6
 
@@ -55,11 +55,11 @@ _C.MODEL.TYPE = 'vssm'
 _C.MODEL.NAME = 'vssm_tiny_224'
 # Pretrained weight from checkpoint, could be imagenet22k pretrained weight
 # could be overwritten by command line argument
-_C.MODEL.PRETRAINED = ''
+_C.MODEL.PRETRAINED = '/root/VMamba/classification/weights/vssmbase_dp05_ckpt_epoch_260.pth'
 # Checkpoint to resume, could be overwritten by command line argument
 _C.MODEL.RESUME = ''
 # Number of classes, overwritten in data preparation
-_C.MODEL.NUM_CLASSES = 43
+_C.MODEL.NUM_CLASSES = 1000
 # Dropout rate
 _C.MODEL.DROP_RATE = 0.0
 # Drop path rate
@@ -84,7 +84,7 @@ _C.MODEL.VSSM.SSM_ACT_LAYER = "silu"
 _C.MODEL.VSSM.SSM_CONV = 3
 _C.MODEL.VSSM.SSM_CONV_BIAS = True
 _C.MODEL.VSSM.SSM_DROP_RATE = 0.0
-_C.MODEL.VSSM.SSM_INIT = "v0"
+_C.MODEL.VSSM.SSM_SIMPLE_INIT = False
 _C.MODEL.VSSM.SSM_FORWARDTYPE = "v2"
 _C.MODEL.VSSM.MLP_RATIO = 4.0
 _C.MODEL.VSSM.MLP_ACT_LAYER = "gelu"

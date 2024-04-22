@@ -56,7 +56,25 @@ def load_checkpoint_ema(config, model, optimizer, lr_scheduler, loss_scaler, log
     return max_accuracy, max_accuracy_ema
 
 
-def load_pretrained_ema(config, model, logger, model_ema: ModelEma=None, load_ema_separately=False):
+def just_load_checkpoint_ema(config, model, model_ema: ModelEma = None):
+    if config.MODEL.RESUME.startswith('https'):
+        checkpoint = torch.hub.load_state_dict_from_url(
+            config.MODEL.RESUME, map_location='cpu', check_hash=True)
+    else:
+        checkpoint = torch.load(config.MODEL.RESUME, map_location='cpu')
+    msg = None
+    if 'model' in checkpoint:
+        msg = model.load_state_dict(checkpoint['model'], strict=False)
+
+    if model_ema is not None:
+        if 'model_ema' in checkpoint:
+            msg = model_ema.ema.load_state_dict(checkpoint['model_ema'], strict=False)
+
+    del checkpoint
+    torch.cuda.empty_cache()
+    return msg
+
+def load_pretrained_ema(config, model, logger, model_ema: ModelEma=None):
     logger.info(f"==============> Loading weight {config.MODEL.PRETRAINED} for fine-tuning......")
     checkpoint = torch.load(config.MODEL.PRETRAINED, map_location='cpu')
     
@@ -68,17 +86,30 @@ def load_pretrained_ema(config, model, logger, model_ema: ModelEma=None, load_em
         logger.warning(f"No 'model' found in {config.MODEL.PRETRAINED}! ")
 
     if model_ema is not None:
-        key = "model_ema" if load_ema_separately else "model"
-        if key in checkpoint:
-            msg = model_ema.ema.load_state_dict(checkpoint[key], strict=False)
+        if 'model_ema' in checkpoint:
+            msg = model_ema.ema.load_state_dict(checkpoint['model_ema'], strict=False)
             logger.warning(msg)
-            logger.info(f"=> loaded '{key}' successfully from '{config.MODEL.PRETRAINED}' for model_ema")
+            logger.info(f"=> loaded 'model_ema' successfully from '{config.MODEL.PRETRAINED}'")
         else:
-            logger.warning(f"No '{key}' found in {config.MODEL.PRETRAINED}! ")
+            logger.warning(f"No 'model_ema' found in {config.MODEL.PRETRAINED}! ")
 
     del checkpoint
     torch.cuda.empty_cache()
 
+
+def just_load_pretrained_ema(config, model, model_ema: ModelEma = None):
+    checkpoint = torch.load(config.MODEL.PRETRAINED, map_location='cpu')
+    msg = None
+    if 'model' in checkpoint:
+        msg = model.load_state_dict(checkpoint['model'], strict=False)
+
+    if model_ema is not None:
+        if 'model_ema' in checkpoint:
+            msg = model_ema.ema.load_state_dict(checkpoint['model_ema'], strict=False)
+
+    del checkpoint
+    torch.cuda.empty_cache()
+    return msg
 
 def save_checkpoint_ema(config, epoch, model, max_accuracy, optimizer, lr_scheduler, loss_scaler, logger, model_ema: ModelEma=None, max_accuracy_ema=None):
     save_state = {'model': model.state_dict(),

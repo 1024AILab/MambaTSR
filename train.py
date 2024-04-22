@@ -1,13 +1,15 @@
 # coding=utf-8
-# @FileName:server_train.py
-# @Time:2024/3/16 
+# @FileName:train123.py
+# @Time:2024/3/27 
 # @Author: CZH
 # coding=utf-8
 # @FileName:train.py
-# @Time:2024/3/14 
+# @Time:2024/3/14
 # @Author: CZH
 import time
-
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 import torch.nn.functional
 from PIL import Image
 from torchvision import transforms
@@ -26,13 +28,15 @@ import os
 from thop import profile
 import torch
 from torch.backends import cudnn
-# import tqdm
+from models.VSSBlock_utils import Super_Mamba
 import timm
+
+
 # from timm.models.vision_transformer import vit_small_patch16_224, vit_base_patch8_224, vit_large_patch16_224
 
 # from models_mamba import vim_tiny_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2
 
-from demomain import parse_option, main_demo
+# from classification.main import parse_option, main_demo
 
 
 def dataloader_prepare(train_data_folder_path, test_data_folder_path, batchsize):
@@ -182,62 +186,190 @@ def train_and_test(start_epoch, num_epochs, train_dataloader, test_dataloader, m
             torch.save(checkpoint_dict, save_check_point_name)
         logging.info(f"Best Accuracy:{best_acc} at {round(best_acc_epoch, 4)} epoch")
 
-    csv_file = 'losses.csv'
-    csv_file = model_name + csv_file
-    csv_file = os.path.join(folder_path, csv_file)
-    with open(csv_file, 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Loss'])
-        for loss in losses_saver:
-            writer.writerow([loss])
-    print(f"损失值已保存到 {csv_file}")
-
-    input = torch.zeros((1, 3, 32, 32)).to(device)
-    flops, params = profile(model, inputs=(input,))
-
-    print("\n参数量：", round(params / 1.0e6, 4), "M")
-    print("FLOPS：", round(flops / 1.0e6, 4), "M")
-    information_density = params / flops
-    print("信息密度：", information_density)
-    logging.info(
-        f"参数量: {round(params / 1.0e6, 4)}M, FLOPS: {round(flops / 1.0e6, 4)}M, 信息密度:{information_density}")
-    average_time, fps = get_fps_new(model=model, 
-                                    test_data_folder_path=test_data_path, 
-                                    batch_size=batchsize)
-    logging.info(
-        f"平均推理时间: {round(average_time, 4)} ms, FPS: {round(fps, 4)}")
-
-
-def get_fps_new(model, test_data_folder_path, batch_size):
-
-    transform_val = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        transforms.Resize([32, 32]),
-    ])
-
-    test_data = datasets.ImageFolder(test_data_folder_path, transform=transform_val)
-
-    # 数据集的长度
-    test_data_size = len(test_data)
-    print("测试数据集的长度为：{}".format(test_data_size))
-
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
     model.eval()
-
+    true_labels = []
+    predicted_labels = []
     with torch.no_grad():
-        start_time = time.time()
-        for inputs, _ in test_loader:
-            outputs = model(inputs)
-        end_time = time.time()
+        for images, labels in test_dataloader:
+            images = images.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            true_labels.extend(labels.cpu().numpy())
+            predicted_labels.extend(predicted.cpu().numpy())
 
-    # 4. 分析结果
-    inference_time = end_time - start_time
-    inference_time / len(test_data) * 1000
-    fps = 1 / (inference_time / len(test_data))
-    print(f"Inference time for one batch: {inference_time / len(test_data) * 1000} ms")
-    print(f"Frames per second (FPS): {fps}")
+            # 选择前15个类别
+    classes_to_plot = range(15)
+
+    # 筛选出前15个类别的数据
+    true_labels_filtered = []
+    predicted_labels_filtered = []
+    for true, predicted in zip(true_labels, predicted_labels):
+        if true in classes_to_plot and predicted in classes_to_plot:
+            true_labels_filtered.append(true)
+            predicted_labels_filtered.append(predicted)
+
+    # 计算混淆矩阵
+    conf_matrix = confusion_matrix(true_labels_filtered, predicted_labels_filtered)
+
+    # 绘制混淆矩阵
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", cbar=False)
+    # plt.xlabel("Predicted labels")
+    # plt.ylabel("True labels")
+    # plt.title("Confusion Matrix (Top 15 Classes)")
+    plt.savefig("confusion_matrix_top15_german.png", dpi=300)
+    plt.show()
+
+    # model.eval()
+#     true_labels = []
+#     predicted_labels = []
+#     with torch.no_grad():
+#         for images, labels in test_dataloader:
+#             images = images.to(device)
+#             outputs = model(images)
+#             _, predicted = torch.max(outputs, 1)
+#             true_labels.extend(labels.cpu().numpy())  # 将真实标签移动到CPU上并转换为NumPy数组
+#             predicted_labels.extend(predicted.cpu().numpy())  # 将预测结果移动到CPU上并转换为NumPy数组
+
+
+#     # 4. 计算混淆矩阵
+#     conf_matrix = confusion_matrix(true_labels, predicted_labels)
+
+#     # 5. 绘制混淆矩阵
+#     plt.figure(figsize=(10, 8))
+#     sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", cbar=False)
+#     plt.xlabel("Predicted labels")
+#     # plt.ylabel("True labels")
+#     plt.title("Confusion Matrix")
+#     plt.savefig("confusion_matrix_highres2.png", dpi=300)
+#     plt.show()
+
+#     plt.figure(figsize=(10, 8))
+
+#     # 自定义颜色映射
+#     cmap = sns.cubehelix_palette(light=1, as_cmap=True)
+
+#     # 绘制热力图
+#     dummy = plt.imshow([[0, 0], [0, 0]], cmap=cmap)  # 创建一个虚拟图像对象
+#     colorbar = plt.colorbar(dummy)
+#     colorbar.set_label('Number of samples', rotation=270, labelpad=20)
+
+#     plt.xlabel("Predicted labels")
+#     plt.ylabel("True labels")
+#     plt.title("Confusion Matrix")
+#     plt.savefig("confusion_matrix_highres1.png", dpi=300)
+#     plt.show()
+
+
+# csv_file = 'losses.csv'
+# csv_file = model_name + csv_file
+# csv_file = os.path.join(folder_path, csv_file)
+# with open(csv_file, 'w', newline='') as file:
+#     writer = csv.writer(file)
+#     writer.writerow(['Loss'])
+#     for loss in losses_saver:
+#         writer.writerow([loss])
+# print(f"损失值已保存到 {csv_file}")
+#
+# input = torch.zeros((1, 3, 32, 32)).to(device)
+# flops, params = profile(model, inputs=(input,))
+#
+# print("\n参数量：", round(params / 1.0e6, 4), "M")
+# print("FLOPS：", round(flops / 1.0e6, 4), "M")
+# information_density = params / flops
+# print("信息密度：", information_density)
+# logging.info(
+#     f"参数量: {round(params / 1.0e6, 4)}M, FLOPS: {round(flops / 1.0e6, 4)}M, 信息密度:{information_density}")
+# average_time, fps = get_fps(model)
+# logging.info(
+#     f"平均推理时间: {round(average_time, 4)}s, FPS: {round(fps, 4)}")
+
+
+def get_fps(model):
+    # 定义图像转换
+    # transform = transforms.Compose([
+    #     transforms.Resize((224, 224)),  # 调整图像大小
+    #     transforms.ToTensor(),  # 转换为张量
+    #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 标准化
+    # ])
+    #
+    # # 加载图像
+    # image_path = r'F:\acm\pythonProject\process_dataset\China\test\prohibitory\3.5m\271.jpg'  # 替换为你自己的图像路径
+    # image = Image.open(image_path)
+    #
+    # # 图像转换和预处理
+    # input_tensor = transform(image)
+    # input_batch = input_tensor.unsqueeze(0)  # 添加批次维度
+
+    iterations = 300  # 重复计算的轮次
+
+    model = model
+    device = torch.device("cuda:0")
+    # model.to(device)
+
+    random_input = torch.randn(1, 3, 224, 224).to(device)
+
+    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+
+    # GPU预热
+    for _ in range(50):
+        _ = model(random_input)
+
+    # 测速
+    times = torch.zeros(iterations)  # 存储每轮iteration的时间
+    with torch.no_grad():
+        for iter in range(iterations):
+            starter.record()
+            _ = model(random_input)
+            ender.record()
+            # 同步GPU时间
+            torch.cuda.synchronize()
+            curr_time = starter.elapsed_time(ender)  # 计算时间
+            times[iter] = curr_time
+            # print(curr_time)
+
+    mean_time = times.mean().item()
+    print("Inference time: {:.6f}, FPS: {} ".format(mean_time * 1.0, 1000.0 / mean_time))
+    inference_time = mean_time
+    fps = 1000.0 / mean_time
     return inference_time, fps
+
+
+def interface_time_gettter(model):
+    cudnn.benchmark = True
+
+    device = torch.device("cuda:0")
+    model = model.to(device)
+    repetitions = 800
+
+    dummy_input = torch.rand(1, 3, 256, 256).to(device)
+
+    # 预热, GPU 平时可能为了节能而处于休眠状态, 因此需要预热
+    print('warm up ...\n')
+    with torch.no_grad():
+        for _ in range(100):
+            _ = model(dummy_input)
+
+    # synchronize 等待所有 GPU 任务处理完才返回 CPU 主线程
+    torch.cuda.synchronize()
+
+    # 设置用于测量时间的 cuda Event, 这是PyTorch 官方推荐的接口,理论上应该最靠谱
+    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    # 初始化一个时间容器
+    timings = np.zeros((repetitions, 1))
+
+    print('testing ...\n')
+    with torch.no_grad():
+        for rep in tqdm(range(repetitions)):
+            starter.record()
+            _ = model(dummy_input)
+            ender.record()
+            torch.cuda.synchronize()  # 等待GPU任务完成
+            curr_time = starter.elapsed_time(ender)  # 从 starter 到 ender 之间用时,单位为毫秒
+            timings[rep] = curr_time
+
+    avg = timings.sum() / repetitions
+    print('\navg={}\n'.format(avg))
 
 
 def get_args():
@@ -247,15 +379,15 @@ def get_args():
     # german 43
     # china 103
     # india 15
-    parser.add_argument('--dataset_name', default="GTSRB_128x128",
+    parser.add_argument('--dataset_name', default="German",
                         type=str, help='输出文件路径')
 
-    parser.add_argument('--class_num', default=43,
+    parser.add_argument('--class_num', default=103,
                         type=int, help='输入文件路径')
 
     parser.add_argument('--batch_size', default=64,
                         type=int, help='是否显示详细信息')
-    # autodl-tmp/GTSRB_128x128/train
+
     parser.add_argument('--train_dataset_path',
                         default=r"/root/autodl-tmp/GTSRB_128x128/train",
                         type=str, help='是否显示详细信息')
@@ -323,10 +455,12 @@ if __name__ == '__main__':
     # model = vit_small_patch16_224(img_size=(32, 32), depth=5, patch_size=8, mlp_ratio=2,
     #                               num_heads=6, embed_dim=192, num_classes=args.class_num)
     # args1 = get_args_p
-    _, config = parse_option()
-    model = main_demo(config)
+    # _, config = parse_option()
+    # model = main_demo(config)
+    model = Super_Mamba(dims=3, depth=4, num_classes=args.class_num)
+    model = model.to(device)
 
-    model_name = "swin vim"
+    model_name = "vim_matrix"
     path = r"/root"
     train_and_test(args.start_epoch,
                    args.num_epoch,
