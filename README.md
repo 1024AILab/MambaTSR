@@ -5,6 +5,10 @@
 
 ## MambaTSR: You Only Need 90k Parameters for Traffic Sign Recognition
 
+
+### Our work “MambaTSR: You Only Need 90k Parameters for Traffic Sign Recognition” has been accepted by Neurocomputing(JCR Q1) 🎉🎉🎉 and the paper will online soon!
+
+
 ### [[Paper](TBD)] 
 
 [Zhihao Chen](https://scholar.google.com/citations?user=SBoHvVQAAAAJ&hl=zh-CN), [Yiyuan Ge](https://scholar.google.com/citations?user=qKxpHGcAAAAJ&hl=zh-CN), Mingxin Yu, Qing Yue, Lianqing Zhu
