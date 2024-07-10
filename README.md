@@ -13,7 +13,7 @@
 
 
 
-### [[Paper](TBD)] 
+### [[Paper](https://www.sciencedirect.com/science/article/abs/pii/S0925231224008750)] 
 
 [Zhihao Chen](https://scholar.google.com/citations?user=SBoHvVQAAAAJ&hl=zh-CN), [Yiyuan Ge](https://scholar.google.com/citations?user=qKxpHGcAAAAJ&hl=zh-CN), Mingxin Yu, Qing Yue, Lianqing Zhu
 
